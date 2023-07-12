@@ -47,6 +47,7 @@ do
       DRYRUN=1
       DEBUG=1
       ;;
+    "--break" ) BREAKPOINT=1;;
     "--dc="* )
       work=dc
       dc="${opt#*=}";;
@@ -86,7 +87,7 @@ if [ $DEBUG ]; then
   echo "tkc=$tkc"
   echo "tns=$tns"
   echo "DRYRUN=$DRYRUN"
-  die "DEBUG BAILOUT"
+  [ $BREAKPOINT ] && die "DEBUG BREAKPOINT"
 fi
 
 case $work in
@@ -94,13 +95,15 @@ case $work in
     # check for duplicate in dc.list or add to dc.list
     [ $dc ] || die "no dc given"
     [ $DEBUG ] && echo "running mkdc $dc"
-    [ $(grep -c "$dc" $listdir/dc.list) ] && die "$dc already exists" || [ $DRYRUN ] && echo "echo $dc > $listdir/$dc.list" || echo $dc > $listdir/$dc.list
+    [ $DEBUG ] && echo $(grep -c "$dc" $listdir/dc.list)
+    [ $(grep "$dc" $listdir/dc.list) ] && die "$dc already on dc.list" || [ $DRYRUN ] && echo "echo $dc >> $listdir/dc.list" || echo $dc >> $listdir/dc.list
     ;;
   "tkg" )
     # check for duplicate in tkg.list or add to tkg.list
     [ $dc ] || die "no dc-name given"
     [ $tkg ] || die "no tkg-name given"
     [ $DEBUG ] && echo "running mktkg $dc $tkg"
+    [ $(grep "$tkg" $listdir/tkg.list) ] && die "$tkg already on tkg.list" || [ $DRYRUN ] && echo "echo $tkg >> $listdir/tkg.list" || echo $tkg >> $listdir/tkg.list
     # check for folder $dc-$tkg-tkg or create
     [ -d $workdir/$dc-$tkg-tkg ] && die "$dc-$tkg-tkg already exists" || [ $DRYRUN ] && echo "mkdir $workdir/$dc-$tkg-tkg" || mkdir $workdir/$dc-$tkg-tkg
     # read the tkg-reqs.list and mktkc each
@@ -112,6 +115,7 @@ case $work in
     [ $tkg ] || die "no tkg-name given"
     [ $tkc ] || die "no tkc-name given"
     [ $DEBUG ] && echo "running mktkg $dc $tkg $tkc"
+    [ $(grep "$tkc" $listdir/tkc.list) ] && die "$tkc already on tkg.list" || [ $DRYRUN ] && echo "echo $tkc >> $listdir/tkc.list" || echo $tkc >> $listdir/tkc.list
     # check for folder $dc-$tkg-tkg/$dc-$tkg-$tkc or create
     [ -d $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc ] && die "$dc-$tkg-$tkc already exists" || [ $DRYRUN ] && echo "mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc" || $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc
     # copy cluster policies from skeleton
@@ -130,6 +134,7 @@ case $work in
     [ $tkc ] || die "no tkc-name given"
     [ $tns ] || die "no tns-name given"
     [ $DEBUG ] && echo "running mktns $dc $tkg $tkc $tns"
+    [ $(grep "$tns" $listdir/tns.list) ] && die "$tns already on tns.list" || [ $DRYRUN ] && echo "echo $tns >> $listdir/tns.list" || echo $tns >> $listdir/tns.list
     # check for folder $dc-$tkg-tkg/$dc-$tkg-$tkc-$tns or create
     [ -d $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns ] && die "$dc-$tkg-$tkc-$tns already exists" || [ $DRYRUN ] && echo "mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns" || mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns
     # copy policies, namespace limits, etc
