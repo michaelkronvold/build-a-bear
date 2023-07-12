@@ -1,5 +1,6 @@
 #!/bin/bash
 
+DEBUG=
 program=${0##*/}   #  similar to using basename
 tempkey=7008
 tmp1=$( mktemp /dev/shm/${tempkey}_${program}_tmp.XXXXXXXXXX )
@@ -25,27 +26,83 @@ trap "die 'SIG disruption, but cleanup finished.' 114" 1 2 3 15
 #    Cleanup after INTERRUPT: 1=SIGHUP, 2=SIGINT, 3=SIGQUIT, 15=SIGTERM
 
 
-# set a default workdir and read config from the
+# read config and set some defaults
 confdir=$(dirname "$0")
-[ -d $workdir ] || workdir=$(pwd)
+[ $workdir ] || workdir=$confdir
+[ -d $workdir ] || workdir=$confdir
 [ -f $confdir/bab.conf ] && source $confdir/bab.conf || die "No config file found in default location $confdir/bab.conf"
 [ $listdir ] || die "No listdir found in config"
-[ -d $listdir ] || workdir=$(pwd)
+[ -d $listdir ] || listdir=$(pwd)
+
+while [[ $# -gt 0 ]] && [[ "$1" == "--"* ]] ;
+do
+  opt=${1}
+  case "${opt}" in
+    "--" )
+      break 2;;
+    "--dry" ) DRYRUN=1;;
+    "--dryrun" ) DRYRUN=1;;
+    "--test" ) DRYRUN=1;;
+    "--debug" )
+      DRYRUN=1
+      DEBUG=1
+      ;;
+    "--dc="* )
+      work=dc
+      dc="${opt#*=}";;
+    "--tkg="* )
+      work=tkg
+      tkg="${opt#*=}";;
+    "--env="* )
+      work=tkg
+      tkg="${opt#*=}";;
+    "--tkc="* )
+      work=tkc
+      tkc="${opt#*=}";;
+    "--cluster="* )
+      work=tkc
+      tkc="${opt#*=}";;
+    "--tns="* )
+      work=tns
+      tns="${opt#*=}";;
+    "--app="* )
+      work=tns
+      tns="${opt#*=}";;
+    *)
+    #   erm.  nothing here.
+    ;;
+  esac
+  shift
+done
+
+if [ $DEBUG ]; then
+  echo "DEBUG=$DEBUG"
+  echo "confdir=$confdir"
+  echo "workdir=$workdir"
+  echo "listdir=$listdir"
+  echo "work=$work"
+  echo "dc=$dc"
+  echo "tkg=$tkg"
+  echo "tkc=$tkc"
+  echo "tns=$tns"
+  echo "DRYRUN=$DRYRUN"
+  die "DEBUG BAILOUT"
+fi
 
 case $work in
   "dc" )
     # check for duplicate in dc.list or add to dc.list
     [ $dc ] || die "no dc given"
-    echo "mkdc $dc"
-    grep "$dc" $listdir/dc.list
+    [ $DEBUG ] && echo "running mkdc $dc"
+    [ $(grep -c "$dc" $listdir/dc.list) ] && die "$dc already exists" || [ $DRYRUN ] && echo "echo $dc > $listdir/$dc.list" || echo $dc > $listdir/$dc.list
     ;;
   "tkg" )
     # check for duplicate in tkg.list or add to tkg.list
     [ $dc ] || die "no dc-name given"
     [ $tkg ] || die "no tkg-name given"
-    echo "mktkg $dc $tkg"
+    [ $DEBUG ] && echo "running mktkg $dc $tkg"
     # check for folder $dc-$tkg-tkg or create
-    [ -d $workdir/$dc-$tkg-tkg ] && die "$dc-$tkg-tkg already exists" || echo "mkdir $workdir/$dc-$tkg-tkg"
+    [ -d $workdir/$dc-$tkg-tkg ] && die "$dc-$tkg-tkg already exists" || [ $DRYRUN ] && echo "mkdir $workdir/$dc-$tkg-tkg" || mkdir $workdir/$dc-$tkg-tkg
     # read the tkg-reqs.list and mktkc each
     [ -f $listdir/tkg-reqs.list ] && cat $listdir/tkg-reqs.list || die "no tkg-reqs.list found"
     ;;
@@ -54,9 +111,9 @@ case $work in
     [ $dc ] || die "no dc-name given"
     [ $tkg ] || die "no tkg-name given"
     [ $tkc ] || die "no tkc-name given"
-    echo "mktkg $dc $tkg $tkc"
+    [ $DEBUG ] && echo "running mktkg $dc $tkg $tkc"
     # check for folder $dc-$tkg-tkg/$dc-$tkg-$tkc or create
-    [ -d $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc ] && die "$dc-$tkg-$tkc already exists" || echo "mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc"
+    [ -d $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc ] && die "$dc-$tkg-$tkc already exists" || [ $DRYRUN ] && echo "mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc" || $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc
     # copy cluster policies from skeleton
     #cp $skeldir/stuff
     # tmc?
@@ -72,9 +129,9 @@ case $work in
     [ $tkg ] || die "no tkg-name given"
     [ $tkc ] || die "no tkc-name given"
     [ $tns ] || die "no tns-name given"
-    echo "mktns $dc $tkg $tkc $tns"
+    [ $DEBUG ] && echo "running mktns $dc $tkg $tkc $tns"
     # check for folder $dc-$tkg-tkg/$dc-$tkg-$tkc-$tns or create
-    [ -d $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns ] && die "$dc-$tkg-$tkc-$tns already exists" || echo "mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns"
+    [ -d $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns ] && die "$dc-$tkg-$tkc-$tns already exists" || [ $DRYRUN ] && echo "mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns" || mkdir $workdir/$dc-$tkg-tkg/$dc-$tkg-$tkc-$tns
     # copy policies, namespace limits, etc
     # read the tns-reqs.list and run each
     [ -f $listdir/tns-reqs.list ] && cat $listdir/tns-reqs.list || die "no tns-reqs.list found"
