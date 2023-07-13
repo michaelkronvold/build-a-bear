@@ -43,7 +43,14 @@ trap "die 'SIG disruption, but cleanup finished.' 114" 1 2 3 15
 #    Cleanup after INTERRUPT: 1=SIGHUP, 2=SIGINT, 3=SIGQUIT, 15=SIGTERM
 
 #--------------------------------------------------------------------
-# takes a list of numbers and formats them with thousands seperators by locale settings
+#   Formats the specified number(s) according to the rules of the
+#   current locale in terms of digit grouping (thousands separators).
+# Usage:
+#    groupDigits num ...
+# Examples:
+#   groupDigits 1000 # -> '1,000'
+#   groupDigits 1000.5 # -> '1,000.5'
+#   (LC_ALL=lt_LT.UTF-8; groupDigits 1000,5) # -> '1 000,5'
 groupDigits() {
   local decimalMark fractPart
   decimalMark=$(printf "%.1f" 0); decimalMark=${decimalMark:1:1}
@@ -87,3 +94,31 @@ calculate()
 # Draw a horizontal line the width of the terminal
 # requires: tput
 hr () { printf "%0$(tput cols)d" | tr 0 ${1:-=}; }
+
+#--------------------------------------------------------------------
+# csv output helper, see usage
+csv()
+{
+  if [ ! "${1}" ]; then
+    echo "Usage: csv [items] >> {file.csv}"
+    echo "   [items] will be protected against embedded commas"
+    echo "   example:"
+    echo "   # csv 1 \"2 3 4 5\" \"6-7?8\" \"9,10\""
+    echo "   1,2 3 4 5,6-7?8,\"9,10\""
+    return
+  fi
+  #
+  local items=("$@") # quote and escape as needed
+                     # datatracker.ietf.org/doc/html/rfc4180
+  for i in "${!items[@]}"; do
+    if [[ "${items[$i]}" =~ [,\"] ]]; then
+       items[$i]=\"$(echo -n "${items[$i]}" | sed s/\"/\"\"/g)\"
+    fi
+  done
+  (
+    IFS=,
+    echo "${items[*]}"
+  )
+}
+
+#--------------------------------------------------------------------
