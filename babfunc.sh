@@ -1,4 +1,4 @@
-###--------------------------------------------------------------------
+#--------------------------------------------------------------------
 mktmps () {
   tmp=()           # array of tmp files, refer to them as ${tmp[0]} thru ${tmp[tmps]}
                    # yes this always makes one extra tmp[0] as a spare intentionally
@@ -8,26 +8,82 @@ mktmps () {
     tmpfile=$( mktemp /dev/shm/${tempkey}_${program}_tmp.XXXXXXXXXX )
     tmp+=($tmpfile)
   done
-} #--------------------------------------------------------------------
+}
+
+#--------------------------------------------------------------------
 cleanup () {
      #  Delete temporary files, then optionally exit given status.
      local status=${1:-'0'}
      rm -f ${tmp[@]}
      [ $status = '-1' ] ||  exit $status      #  thus -1 prevents exit.
-} #--------------------------------------------------------------------
+}
+
+#--------------------------------------------------------------------
 debug () {
      #  Message with DEBUG: to stderr.          Usage: debug "message"
      [ $DEBUG ] && echo -e "\n !! DEBUG: $1 "  >&2
-} #--------------------------------------------------------------------
+}
+
+#--------------------------------------------------------------------
 warn () {
      #  Message with basename to stderr.          Usage: warn "message"
      echo -e "\n !!  ${program}: $1 "  >&2
-} #--------------------------------------------------------------------
+}
+
+#--------------------------------------------------------------------
 die () {
      #  Exit with status of most recent command or custom status, after
      #  cleanup and warn.      Usage: command || die "message" [status]
      local status=${2:-"$?"}
      cleanup -1  &&   warn "$1"  &&  exit $status
-} #--------------------------------------------------------------------
+}
+
+#--------------------------------------------------------------------
 trap "die 'SIG disruption, but cleanup finished.' 114" 1 2 3 15
 #    Cleanup after INTERRUPT: 1=SIGHUP, 2=SIGINT, 3=SIGQUIT, 15=SIGTERM
+
+#--------------------------------------------------------------------
+# takes a list of numbers and formats them with thousands seperators by locale settings
+groupDigits() {
+  local decimalMark fractPart
+  decimalMark=$(printf "%.1f" 0); decimalMark=${decimalMark:1:1}
+  for num; do
+    fractPart=${num##*${decimalMark}}; [[ "$num" == "$fractPart" ]] && fractPart=''
+    printf "%'.${#fractPart}f\n" "$num" || return
+  done
+}
+
+#--------------------------------------------------------------------
+# Calculate using bc
+# usage:
+#     calculate {options} expression
+#               --scale=n  number of digits to return
+# requires: bc
+calculate()
+{
+    floatscale=1 #default
+    result=
+    expression=
+    while [[ $# -gt 0 ]] && [[ "$1" == "--"* ]] ;
+    do
+        opt=${1}
+        case "${opt}" in
+            "--" )
+                break 2;;
+            "--scale="* )
+                floatscale="${opt#*=}";;
+            *)
+            #   erm.  nothing here.
+            ;;
+        esac
+        shift
+    done
+    expression=$*
+    result=$(echo "scale=${floatscale}; ${expression}" | bc -q 2>/dev/null)
+    printf '%*.*f' 0 "${floatscale}" "${result}"
+}
+
+#--------------------------------------------------------------------
+# Draw a horizontal line the width of the terminal
+# requires: tput
+hr () { printf "%0$(tput cols)d" | tr 0 ${1:-=}; }
