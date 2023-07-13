@@ -1,40 +1,22 @@
 #!/bin/bash
 
+tempkey=7008       # set this to something unique to your scripts
+tmps=1             # number of tmp files needed
 DEBUG=
-program=${0##*/}   #  similar to using basename
-tempkey=7008
-tmp1=$( mktemp /dev/shm/${tempkey}_${program}_tmp.XXXXXXXXXX )
-tmp2=$( mktemp /dev/shm/${tempkey}_${program}_tmp.XXXXXXXXXX )
 
-cleanup () {
-     #  Delete temporary files, then optionally exit given status.
-     local status=${1:-'0'}
-     rm -f $tmp1 $tmp2
-     [ $status = '-1' ] ||  exit $status      #  thus -1 prevents exit.
-} #--------------------------------------------------------------------
-debug () {
-     #  Message with DEBUG: to stderr.          Usage: debug "message"
-     [ $DEBUG ] && echo -e "\n !! DEBUG: $1 "  >&2
-} #--------------------------------------------------------------------
-warn () {
-     #  Message with basename to stderr.          Usage: warn "message"
-     echo -e "\n !!  ${program}: $1 "  >&2
-} #--------------------------------------------------------------------
-die () {
-     #  Exit with status of most recent command or custom status, after
-     #  cleanup and warn.      Usage: command || die "message" [status]
-     local status=${2:-"$?"}
-     cleanup -1  &&   warn "$1"  &&  exit $status
-} #--------------------------------------------------------------------
-trap "die 'SIG disruption, but cleanup finished.' 114" 1 2 3 15
-#    Cleanup after INTERRUPT: 1=SIGHUP, 2=SIGINT, 3=SIGQUIT, 15=SIGTERM
-
-
-# read config and set some defaults
+############ don't mess with these ###########
+#
+program=${0##*/}   # similar to using basename
 confdir=$(dirname "$0")
 [ $workdir ] || workdir=$confdir
 [ -d $workdir ] || workdir=$confdir
 [ -f $confdir/bab.conf ] && source $confdir/bab.conf || die "No config file found in default location $confdir/bab.conf" 10
+[ -f $confdir/babfunc.sh ] && source $confdir/babfunc.sh || die "$confdir/babfunc.sh not found" 11
+mktmps
+#
+###############################################
+
+# check the config
 [ $listdir ] || die "No listdir found in config" 10
 [ -d $listdir ] || listdir=$(pwd)
 
@@ -77,19 +59,17 @@ do
   shift
 done
 
-if [ $DEBUG ]; then
-  debug "DEBUG=$DEBUG"
-  debug "confdir=$confdir"
-  debug "workdir=$workdir"
-  debug "listdir=$listdir"
-  debug "work=$work"
-  debug "dc=$dc"
-  debug "tkg=$tkg"
-  debug "tkc=$tkc"
-  debug "tns=$tns"
-  debug "DRYRUN=$DRYRUN"
-  [ $BREAKPOINT ] && die "DEBUG BREAKPOINT" 99
-fi
+debug "DEBUG=$DEBUG"
+debug "confdir=$confdir"
+debug "workdir=$workdir"
+debug "listdir=$listdir"
+debug "work=$work"
+debug "dc=$dc"
+debug "tkg=$tkg"
+debug "tkc=$tkc"
+debug "tns=$tns"
+debug "DRYRUN=$DRYRUN"
+[ $BREAKPOINT ] && die "DEBUG BREAKPOINT" 99
 
 case "$work" in
   "dc" )
@@ -149,3 +129,5 @@ case "$work" in
     die "nothing to make" 100
     ;;
 esac
+
+cleanup
