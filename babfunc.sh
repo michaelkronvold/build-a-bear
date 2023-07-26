@@ -31,6 +31,19 @@ warn () {
 }
 
 #--------------------------------------------------------------------
+dryrun () {
+     # Message with DRYRUN: if $DRYRUN is set otherwise run it
+     # Usage: dryrun "command"
+     if [ $DRYRUN ]; then
+       echo -e "\n -- DRYRUN: $1 "  >&1
+     else
+       IFS=' ' read -r -a command_arr <<< "${1}"
+       "${command_arr[@]}"
+     fi
+}
+
+
+#--------------------------------------------------------------------
 die () {
      #  Exit with status of most recent command or custom status, after
      #  cleanup and warn.      Usage: command || die "message" [status]
